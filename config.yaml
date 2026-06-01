@@ -1,0 +1,27 @@
+# =============================================================================
+# YOLO Annotation Editor - Default (Global) Config
+# -----------------------------------------------------------------------------
+# Mapping tombol keyboard ke class dan person.
+# Config ini dipakai jika folder dataset yang di-load tidak memiliki
+# 'config.yaml' / 'classes_and_persons.yaml' / 'labels_with_person_id.yaml'.
+#
+# Format setiap entry:
+#   "<keyboard_key>": { id: <int yang ditulis ke file label>, name: "<label>" }
+# =============================================================================
+
+classes:
+  "1": { id: 0, name: "No Interest" }
+  "2": { id: 1, name: "Viewing" }
+  "3": { id: 2, name: "Turning to Shelf" }
+  "4": { id: 3, name: "Touching" }
+  "5": { id: 4, name: "Picking and Returning" }
+  "6": { id: 5, name: "Picking and Putting" }
+
+persons:
+  "q": { id: 0, name: "Person 1" }
+  "w": { id: 1, name: "Person 2" }
+  "e": { id: 2, name: "Person 3" }
+  "r": { id: 3, name: "Person 4" }
+  "t": { id: 4, name: "Person 5" }
+  "y": { id: 5, name: "Person 6" }
+  "u": { id: 6, name: "Person 7" }

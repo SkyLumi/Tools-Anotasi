@@ -1,0 +1,11 @@
+{
+  "mode": "simple",
+  "classes": [
+    "No Interest",
+    "Viewing",
+    "Turning to Shelf",
+    "Touching",
+    "Picking and Returning",
+    "Picking and Putting"
+  ]
+}
