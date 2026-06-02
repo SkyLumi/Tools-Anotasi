@@ -1674,16 +1674,15 @@ class AnnotationEditor:
     def prev_image(self):
         if self.current_index > 0:
             self.save_current(silent=True)
-            self.prev_boxes = []
-            self.prev_selected_box_index = -1
-            self.prev_class_checkpoint_index = -1
-            self.prev_person_checkpoint_index = -1
-            self.prev_class_checkpoint_manual = False
-            self.prev_person_checkpoint_manual = False
-            prev_sel = self.selected_box_index
+            self.prev_boxes = [box[:] for box in self.boxes]
+            self.prev_selected_box_index = self.selected_box_index
+            self.prev_class_checkpoint_index = self.class_checkpoint_index
+            self.prev_person_checkpoint_index = self.person_checkpoint_index
+            self.prev_class_checkpoint_manual = self.class_checkpoint_manual
+            self.prev_person_checkpoint_manual = self.person_checkpoint_manual
             self.current_index -= 1
             self._sync_file_list_selection()
-            self.load_image(self.current_index, inherit_from_prev=False, preserve_selection=prev_sel)
+            self.load_image(self.current_index, inherit_from_prev=True)
 
     def jump_to_image(self):
         try:
@@ -1762,12 +1761,8 @@ class AnnotationEditor:
                 if i < len(cached):
                     box[0] = int(cached[i][0])
                     box[1] = int(cached[i][1])
-            if preserve_selection is not None and self.boxes:
-                target = preserve_selection if 0 <= preserve_selection < len(self.boxes) else 0
-                self._set_selected_box(target, reset_checkpoints=True)
-            else:
-                self._set_selected_box(0 if self.boxes else -1, reset_checkpoints=True)
-        elif inherit_from_prev and self.prev_boxes:
+
+        if inherit_from_prev and self.prev_boxes:
             self._inherit_from_prev()
         elif preserve_selection is not None and self.boxes:
             target = preserve_selection if 0 <= preserve_selection < len(self.boxes) else 0
@@ -1838,17 +1833,20 @@ class AnnotationEditor:
         if selected_target_idx >= 0:
             self.selected_box_index = selected_target_idx
         else:
-            # Safer to clear PICKED than to show a confident border on the
-            # wrong person. User can press Tab or click to select manually.
-            self.selected_box_index = -1
-            if 0 <= self.prev_selected_box_index < len(self.prev_boxes):
-                try:
-                    self.lbl_status.config(
-                        text="PICKED tidak dipindah: match kurang yakin, klik box yang benar",
-                        fg=self.colors["status_warning"]
-                    )
-                except (AttributeError, tk.TclError):
-                    pass
+            # Matching algorithm not confident — fall back to the physically closest box
+            # instead of an arbitrary array index, so the selection doesn't jump randomly.
+            if self.boxes and 0 <= self.prev_selected_box_index < len(self.prev_boxes):
+                prev_box = self.prev_boxes[self.prev_selected_box_index]
+                closest_idx = 0
+                min_dist = float('inf')
+                for i, box in enumerate(self.boxes):
+                    dist = (box[2] - prev_box[2])**2 + (box[3] - prev_box[3])**2
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest_idx = i
+                self.selected_box_index = closest_idx
+            else:
+                self.selected_box_index = 0 if self.boxes else -1
 
         self.class_checkpoint_manual = self.prev_class_checkpoint_manual
         self.person_checkpoint_manual = self.prev_person_checkpoint_manual
