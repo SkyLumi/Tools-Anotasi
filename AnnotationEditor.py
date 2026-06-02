@@ -429,6 +429,7 @@ class AnnotationEditor:
         self.person_checkpoint_index = -1
         self.class_checkpoint_manual = False
         self.person_checkpoint_manual = False
+        self.auto_inherit = True
         self.scale_factor = 1.0
         self.img_offset = (0, 0, 0, 0)
         self.visited_images = set()
@@ -471,6 +472,8 @@ class AnnotationEditor:
         self.root.bind("<Control-b>", lambda e: self.toggle_draw_mode())
         self.root.bind("<Control-B>", lambda e: self.toggle_draw_mode())
         self.root.bind("<Escape>", lambda e: self._on_escape())
+        self.root.bind("<l>", lambda e: self.toggle_auto_inherit())
+        self.root.bind("<L>", lambda e: self.toggle_auto_inherit())
         # Dynamic hotkeys from config
         self._bind_hotkeys()
 
@@ -1810,7 +1813,8 @@ class AnnotationEditor:
                 ambiguity_margin=AMBIGUITY_MARGIN,
             )
             if class_target_idx >= 0:
-                self.boxes[class_target_idx][1] = prev_class_box[1]
+                if self.auto_inherit:
+                    self.boxes[class_target_idx][1] = prev_class_box[1]
 
         if 0 <= person_source_idx < len(self.prev_boxes):
             prev_person_box = self.prev_boxes[person_source_idx]
@@ -1820,7 +1824,8 @@ class AnnotationEditor:
                 ambiguity_margin=AMBIGUITY_MARGIN,
             )
             if person_target_idx >= 0:
-                self.boxes[person_target_idx][0] = prev_person_box[0]
+                if self.auto_inherit:
+                    self.boxes[person_target_idx][0] = prev_person_box[0]
 
         selected_target_idx = -1
         if 0 <= self.prev_selected_box_index < len(self.prev_boxes):
@@ -1911,15 +1916,6 @@ class AnnotationEditor:
         center_tolerance = max(prev_w, prev_h, 0.08) * 2.5
         center_score = max(0.0, 1.0 - (center_dist / center_tolerance))
 
-        prev_area = max(prev_w * prev_h, 1e-9)
-        area = max(bw * bh, 1e-9)
-        area_score = min(prev_area, area) / max(prev_area, area)
-
-        prev_aspect = prev_w / max(prev_h, 1e-9)
-        aspect = bw / max(bh, 1e-9)
-        aspect_score = min(prev_aspect, aspect) / max(prev_aspect, aspect)
-        size_score = (area_score + aspect_score) / 2
-
         label_score = 0.0
         prev_pid, prev_cid = int(prev_box[0]), int(prev_box[1])
         pid, cid = int(box[0]), int(box[1])
@@ -1930,7 +1926,9 @@ class AnnotationEditor:
         if cid == prev_cid:
             label_score += 0.04
 
-        score = (iou * 0.50) + (center_score * 0.30) + (size_score * 0.16) + label_score
+        # Simplified matching: distance + label only (no size similarity)
+        # Size can vary greatly when tracking people at different distances
+        score = (iou * 0.50) + (center_score * 0.45) + label_score
         return score, iou, center_score, label_score
 
     @staticmethod
@@ -2102,6 +2100,17 @@ class AnnotationEditor:
                 pass
             self.lbl_status.config(text="Draw mode OFF", fg=self.colors['text_dim'])
         self.root.focus_set()
+
+    def toggle_auto_inherit(self, event=None):
+        if isinstance(self.root.focus_get(), tk.Entry):
+            return
+        self.auto_inherit = not self.auto_inherit
+        state_str = "ON" if self.auto_inherit else "OFF"
+        color = self.colors["status_success"] if self.auto_inherit else self.colors["status_warning"]
+        self.lbl_status.config(text=f"Auto-Inherit Checkpoint: {state_str}", fg=color)
+        self.root.after(2000, lambda: self.lbl_status.config(
+            text=f"Image {self.current_index + 1}/{len(self.image_files)}",
+            fg=self.colors['text_dim']))
 
     def _on_escape(self):
         """ESC: batalkan draw mode atau preview rectangle yang sedang dibuat."""
